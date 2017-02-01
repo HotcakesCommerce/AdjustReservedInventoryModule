@@ -15,6 +15,7 @@
       <dependencies>
         <dependency type="CoreVersion">07.04.02</dependency>
       </dependencies>
+      <azureCompatible>true</azureCompatible> 
       
       <components>
 
@@ -55,8 +56,8 @@
         </component>
         <component type="Assembly">
           <assemblies>
-            <basePath>bin</basePath>
             <assembly>
+              <path>bin</path>
               <name>Hotcakes.Modules.AdjustReservedInventoryModule.dll</name>
             </assembly>
           </assemblies>

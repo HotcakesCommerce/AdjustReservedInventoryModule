@@ -25,6 +25,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Web.UI.WebControls;
 using DotNetNuke.Services.Exceptions;
 using DotNetNuke.Services.Localization;
 using Hotcakes.Commerce;
@@ -34,6 +35,12 @@ using Hotcakes.Commerce.Catalog;
 
 namespace Hotcakes.Modules.AdjustReservedInventoryModule
 {
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <remarks>
+    /// Has not been tested against product bundles
+    /// </remarks>
     public partial class View : AdjustReservedInventoryModuleBase
     {
         #region Private Members
@@ -67,6 +74,61 @@ namespace Hotcakes.Modules.AdjustReservedInventoryModule
             }
         }
 
+        protected void ResetInventoryReserve(object sender, EventArgs e)
+        {
+            GridViewRow grdrow = (GridViewRow)((LinkButton)sender).NamingContainer;
+            var sku = grdrow.Cells[0].Text;
+            var variantId = grdrow.Cells[2].Text;
+
+            var product = HccApp.CatalogServices.Products.FindBySku(sku);
+
+            var orders = HccApp.OrderServices.Orders.FindAll().Where(o => o.StatusCode == OrderStatusCode.Cancelled);
+
+            var lineItems =
+                HccApp.OrderServices.Orders.FindLineItemsForOrders(orders.ToList()).Where(li => li.ProductId == product.Bvin);
+
+            var returnQty = lineItems.Sum(li => li.QuantityReserved);
+
+            if (lineItems.Any())
+            {
+                // this will need to be done differently in Hotcakes version 2.0 and newer
+                LineItemRepository repo = null;
+                repo = Factory.CreateRepo<LineItemRepository>(HccApp.CurrentRequestContext);
+
+                foreach (var lineItem in lineItems)
+                {
+                    lineItem.QuantityReserved = 0;
+
+                    repo.Update(lineItem);
+                }
+            }
+
+            List<ProductInventory> inventories = null;
+
+            if (string.IsNullOrEmpty(variantId))
+            {
+                inventories = HccApp.CatalogServices.ProductInventories.FindByProductId(product.Bvin);
+            }
+            else
+            {
+                inventories = new List<ProductInventory>
+                {
+                    HccApp.CatalogServices.ProductInventories.FindByProductIdAndVariantId(product.Bvin, variantId)
+                };
+            }
+
+            if (inventories != null && inventories.Count > 0)
+            {
+                foreach (var inventory in inventories)
+                {
+                    inventory.QuantityReserved = inventory.QuantityReserved - returnQty;
+                    HccApp.CatalogServices.ProductInventories.Update(inventory);
+                }
+            }
+
+            Response.Redirect(DotNetNuke.Common.Globals.NavigateURL());
+        }
+
         #endregion
 
         #region Helper Methods
@@ -91,9 +153,11 @@ namespace Hotcakes.Modules.AdjustReservedInventoryModule
 
         private void LoadGrid()
         {
+            //
             // this is a broad search, and it should instead include some 
             // additional criteria to lessen the number of orders returned, 
             // such as a date range
+            //
             var orders = HccApp.OrderServices.Orders.FindAll().Where(o => o.StatusCode == OrderStatusCode.Cancelled);
 
             if (orders == null || !orders.Any())
@@ -102,25 +166,28 @@ namespace Hotcakes.Modules.AdjustReservedInventoryModule
                 return;
             }
 
-            var products = new List<Product>();
+            var lineItems = HccApp.OrderServices.Orders.FindLineItemsForOrders(orders.ToList()).Where(li => li.QuantityReserved > 0);
+            var filteredLineItems = new List<LineItem>();
 
-            var lineItems = HccApp.OrderServices.Orders.FindLineItemsForOrders(orders.ToList());
+            // get a reference to only the products that match the line items we're looking for
+            var products = HccApp.CatalogServices.Products.FindAllPaged(1, int.MaxValue).Where(product => lineItems.Any(li => li.ProductId == product.Bvin)).ToList();
 
             foreach (var lineItem in lineItems)
             {
+                // determine if the product has inventory mode set to reserve product
                 var productInList = products.Any(p => p.Bvin == lineItem.ProductId && p.InventoryMode != ProductInventoryMode.AlwayInStock && p.InventoryMode != ProductInventoryMode.NotSet);
 
-                if (!productInList)
+                if (productInList)
                 {
-                    products.Add(HccApp.CatalogServices.Products.Find(lineItem.ProductId));
+                    filteredLineItems.Add(lineItem);
                 }
             }
 
-            if (products.Count > 0)
+            if (filteredLineItems.Count > 0)
             {
                 ShowProducts();
 
-                grdProducts.DataSource = products;
+                grdProducts.DataSource = filteredLineItems;
                 grdProducts.DataBind();
             }
             else
@@ -129,13 +196,30 @@ namespace Hotcakes.Modules.AdjustReservedInventoryModule
             }
         }
 
-        protected string GetInventoryText(object value)
+        protected string GetInventoryText(object oBvin, object oVariant)
         {
-            if (value == null) return string.Empty;
+            if (oBvin == null) return string.Empty;
 
-            var bvin = value.ToString();
+            var bvin = oBvin.ToString();
+            var variantId = string.Empty;
+            if (oVariant != null)
+            {
+                variantId = oVariant.ToString();
+            }
 
-            var inventories = HccApp.CatalogServices.ProductInventories.FindByProductId(bvin);
+            List<ProductInventory> inventories = null;
+
+            if (string.IsNullOrEmpty(variantId))
+            {
+                inventories = HccApp.CatalogServices.ProductInventories.FindByProductId(bvin);
+            }
+            else
+            {
+                inventories = new List<ProductInventory>
+                {
+                    HccApp.CatalogServices.ProductInventories.FindByProductIdAndVariantId(bvin, variantId)
+                };
+            }
 
             if (inventories == null || inventories.Count == 0)
             {

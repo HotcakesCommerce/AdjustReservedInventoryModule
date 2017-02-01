@@ -4,23 +4,20 @@
 <asp:Panel id="pnlProductList" runat="server">
     <div class="dnnFormMessage dnnFormValidationSummary"><%=GetLocalizedString("ProductsFound") %></div>
     <div class="dnnClear">
-        <asp:GridView id="grdProducts" AutoGenerateColumns="false" 
-                CssClass="dnnGrid" DataKeyNames="Bvin" Width="100%" runat="server">
+        <asp:GridView id="grdProducts" AutoGenerateColumns="false"
+                CssClass="dnnGrid" DataKeyNames="Id" Width="100%" runat="server">
             <Columns>
-                <asp:BoundField DataField="Sku" HeaderText="Sku" />
+                <asp:BoundField DataField="ProductSku" HeaderText="Sku" />
                 <asp:BoundField DataField="ProductName" HeaderText="ProductName" />
+                <asp:BoundField DataField="VariantId" HeaderText="VariantId" />
                 <asp:TemplateField HeaderText="Inventory">
                     <ItemTemplate>
-                        <%#GetInventoryText(DataBinder.Eval(Container.DataItem, "bvin")) %>
+                        <%#GetInventoryText(DataBinder.Eval(Container.DataItem, "ProductId"), DataBinder.Eval(Container.DataItem, "VariantId")) %>
                     </ItemTemplate>
                 </asp:TemplateField>
                 <asp:TemplateField HeaderText="">
                     <ItemTemplate>
-                        <!-- 
-                            Links to Edit Here 
-                            - Reset Reserve to Zero
-                            - Return Cancelled Inventory
-                        -->
+                        <asp:LinkButton OnClick="ResetInventoryReserve" Text="Restore Cancelled Inventory" runat="server"/>
                     </ItemTemplate>
                 </asp:TemplateField>
             </Columns>

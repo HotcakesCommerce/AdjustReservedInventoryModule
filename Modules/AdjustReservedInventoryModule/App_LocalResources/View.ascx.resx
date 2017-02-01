@@ -133,9 +133,12 @@
     <value>Product Name</value>
   </data>
   <data name="ProductsFound.Text" xml:space="preserve">
-    <value>Yikes! Some products were found with reserved inventory associated with at least one cancelled order.</value>
+    <value>Whoops! Some products were found with reserved inventory associated with at least one cancelled order.</value>
   </data>
   <data name="Sku.Header" xml:space="preserve">
     <value>Product SKU</value>
+  </data>
+  <data name="VariantId.Header" xml:space="preserve">
+    <value>Variant ID</value>
   </data>
 </root>
